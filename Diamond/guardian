@@ -13,9 +13,42 @@
 //
 
 import Foundation
-import SwiftRuby // clone RubyNative/SwiftRuby
+import SwiftRuby // clone skyerday/SwiftRuby
 
-//NSLog( "\(Process.arguments)" )
+// not public in Swift3
+// Ref: https://github.com/johnno1962/SwiftTrace/blob/master/SwiftTrace/SwiftTrace.swift
+@_silgen_name("swift_demangle")
+public
+func _stdlib_demangleImpl(
+    _ mangledName: UnsafePointer<CChar>?,
+    mangledNameLength: UInt,
+    outputBuffer: UnsafeMutablePointer<UInt8>?,
+    outputBufferSize: UnsafeMutablePointer<UInt>?,
+    flags: UInt32
+    ) -> UnsafeMutablePointer<CChar>?
+
+
+func _stdlib_demangleName(_ mangledName: String) -> String {
+    return mangledName.utf8CString.withUnsafeBufferPointer {
+        (mangledNameUTF8) in
+        
+        let demangledNamePtr = _stdlib_demangleImpl(
+            mangledNameUTF8.baseAddress,
+            mangledNameLength: UInt(mangledNameUTF8.count - 1),
+            outputBuffer: nil,
+            outputBufferSize: nil,
+            flags: 0)
+        
+        if let demangledNamePtr = demangledNamePtr {
+            let demangledName = String(cString: demangledNamePtr)
+            free(demangledNamePtr)
+            return demangledName
+        }
+        return mangledName
+    }
+}
+
+//NSLog( "\(CommandLine.arguments)" )
 
 let pid = ENV["DIAMOND_CHILD_PID"]!.to_i
 var status: Int32 = 0
@@ -26,9 +59,9 @@ if waitpid( pid_t(pid), &status, 0 ) < 0 || status & 0o177 == 0 {
 }
 
 var binary = "diamond"
-var script = Process.arguments[1]
+var script = CommandLine.arguments[1]
 if script.hasSuffix( ".dmd" ) {
-    binary = script.stringByReplacingOccurrencesOfString( ".dmd", withString: ".dme" )
+    binary = script.replacingOccurrences( of: ".dmd", with: ".dme" )
 }
 
 let logs = "~/Library/Logs/DiagnosticReports/\(binary)_*.crash"
@@ -45,14 +78,14 @@ while let log = IO.popen( "ls -t \(logs) 2>/dev/null | head -1" )?.readline() {
         var mainThread = true
         File.open( log )?.each_line {
             (line) in
-            if mainThread && line.containsString( " + ") {
+            if mainThread && line.contains( " + ") {
                 var mutable = line.mutableString
                 mutable["^((?:\\S+\\s+){3})(\\S+)"] =~ {
                     (groups: [String?]) in
                     return groups[1]!+_stdlib_demangleName( groups[2]! )
                 }
                 STDERR.print( "\(mutable)\n" )
-                if line.containsString( " start + " ) {
+                if line.contains( " start + " ) {
                     mainThread = false
                 }
             }
@@ -61,6 +94,7 @@ while let log = IO.popen( "ls -t \(logs) 2>/dev/null | head -1" )?.readline() {
     }
 }
 
-if Process.arguments[Process.argc-1] != "-restarter" {
+if CommandLine.arguments[CommandLine.argc-1] != "-restarter" {
     exit( EXIT_FAILURE )
 }
+
