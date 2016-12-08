@@ -7,12 +7,20 @@
 //  Copyright © 2015 John Holdsworth. All rights reserved.
 //
 
-import SwiftRuby
 import Cocoa
 
-if Process.argc < 2 {
-    print( "Usage: \(Process.arguments[0]) <http://url..>" )
+let argc = Int(CommandLine.argc)
+var count = argc
+for i in 0..<argc {
+    let param = CommandLine.unsafeArgv[i]
+    if param == nil {
+        count = i
+    }
+}
+
+if count < 2 {
+    print( "Usage: \(String(cString:CommandLine.unsafeArgv[0]!)) <http://url..>" )
     exit(0)
 }
 
-NSApplicationMain( 0,  UnsafeMutablePointer<UnsafeMutablePointer<CChar>>(nil) )
+NSApplicationMain( 0, nil )

@@ -20,15 +20,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print( "\(CommandLine.arguments[0]) reloaded: \(self)!!" )
     }
 
-    func applicationDidFinishLaunching(aNotification: NSNotification) {
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Insert code here to initialize your application
         NSApp.applicationIconImage = NSImage( named:"Swift" )
-        let url = URL( string: CommandLine.arguments[1] )!
+        let url = URL( string: String(cString: CommandLine.unsafeArgv[1]!) )!
         webView.mainFrame.load( URLRequest( url: url ) )
         NSApplication.shared().activate(ignoringOtherApps: true )
     }
 
-    func applicationWillTerminate(aNotification: NSNotification) {
+    func applicationWillTerminate(_ aNotification: Notification) {
         // Insert code here to tear down your application
         psc.reloadTest()
     }
